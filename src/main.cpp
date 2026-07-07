@@ -117,10 +117,15 @@ int main() {
     std::string start_home_num = "157";
     std::string start_street_name = "Gale Lemerand Drive";
     std::string start_city = "Gainesville";
-    // initialize destination address as UF computer science building
-    std::string dest_home_num = "432";
-    std::string dest_street_name = "Newell Drive";
+    std::string start_node = "84836664";
+    bool start_node_found = false;
+
+    // initialize destination address as Gainesville Hyatt
+    std::string dest_home_num = "212";
+    std::string dest_street_name = "Southeast 1st Street";
     std::string dest_city = "Gainesville";
+    std::string end_node = "84898697";
+    bool end_node_found = false;
 
 
     // USER INPUT
@@ -139,8 +144,41 @@ int main() {
     std::cout << "Enter Destination City: " << std::endl;
     std::getline(std::cin, dest_city);
 
-    // future functions
-    // search in node_addresses vector, match address to nearest_to_node or nearest_from_node
+    // FIND start_node
+    // index 4 housenum, index 5 street, index 7 city
+    // match address to index 14 nearest_to_node or index 13 nearest_from_node
+    for (const auto& row : node_addresses) {
+        if (row[4] == start_home_num && row[5] == start_street_name && row[7] == start_city) {
+            // set start_node to nearest_to_node in index 14, nearest_from_node index 13
+            start_node = row[14];
+            // exit loop since found, set start_found flag to true
+            std::cout << "Starting Node: " << start_node << std::endl;
+            start_node_found = true;
+            break;
+        }
+    }
+    if (!start_node_found) {
+        std::cout << "Error finding starting address node!" << std::endl;
+    }
+
+    // FIND end_node
+    // index 4 housenum, index 5 street, index 7 city
+    // match address to index 14 nearest_to_node or index 13 nearest_from_node
+    for (const auto& row : node_addresses) {
+        if (row[4] == dest_home_num && row[5] == dest_street_name && row[7] == dest_city) {
+            // set start_node to nearest_to_node in index 14, nearest_from_node index 13
+            end_node = row[14];
+            // exit loop since found, set start_found flag to true
+            std::cout << "Ending Node: " << end_node << std::endl;
+            end_node_found = true;
+            break;
+        }
+    }
+    if (!end_node_found) {
+        std::cout << "Error finding ending address node!" << std::endl;
+    }
+
+    // build adjacency list using a map<from, vector<pair<to,weight>>> graph; Module 10 UF notes
 
     // road_edges vector
     // from_node = start_node
