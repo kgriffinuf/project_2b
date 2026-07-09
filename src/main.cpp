@@ -9,9 +9,125 @@
 #include <vector>
 #include <sstream>
 #include <fstream>
+#include <map>
+#include <unordered_map>
+#include <queue>
+#include <unordered_set>
+#include <algorithm>
+#include <limits>
 
+std::vector<std::string> bfs(
+    const std::map<std::string, std::vector<std::pair<std::string, double>>>& graph,
+    const std::string& start_node,
+    const std::string& end_node)
+{
+    std::queue<std::string> bfs_queue;
+    std::unordered_set<std::string> visited;
+    std::unordered_map<std::string, std::string> parent;
 
+    bfs_queue.push(start_node);
+    visited.insert(start_node);
+    parent[start_node] = "";
 
+    while (!bfs_queue.empty()) {
+        const std::string current = bfs_queue.front();
+        bfs_queue.pop();
+
+        if (current == end_node) {
+            std::vector<std::string> path;
+            for (std::string node = end_node; !node.empty(); node = parent[node]) {
+                path.push_back(node);
+            }
+            std::reverse(path.begin(), path.end());
+            return path;
+        }
+
+        auto it = graph.find(current);
+        if (it == graph.end()) {
+            continue;
+        }
+
+        for (const auto& neighbor_pair : it->second) {
+            const std::string& neighbor = neighbor_pair.first;
+            if (visited.insert(neighbor).second) {
+                parent[neighbor] = current;
+                bfs_queue.push(neighbor);
+            }
+        }
+    }
+
+    return {};
+}
+
+std::vector<std::string> dijkstra(
+    const std::map<std::string, std::vector<std::pair<std::string, double>>>& graph,
+    const std::string& start_node,
+    const std::string& end_node,
+    double& total_cost)
+{
+    struct PQItem {
+        double distance;
+        std::string node;
+    };
+
+    struct Compare {
+        bool operator()(const PQItem& a, const PQItem& b) const {
+            return a.distance > b.distance;
+        }
+    };
+
+    std::priority_queue<PQItem, std::vector<PQItem>, Compare> pq;
+    std::unordered_map<std::string, double> dist;
+    std::unordered_map<std::string, std::string> parent;
+    const double INF = std::numeric_limits<double>::infinity();
+
+    dist[start_node] = 0.0;
+    parent[start_node] = "";
+    pq.push({0.0, start_node});
+
+    while (!pq.empty()) {
+        const PQItem current = pq.top();
+        pq.pop();
+
+        if (current.distance > dist[current.node]) {
+            continue;
+        }
+
+        if (current.node == end_node) {
+            break;
+        }
+
+        auto it = graph.find(current.node);
+        if (it == graph.end()) {
+            continue;
+        }
+
+        for (const auto& neighbor_pair : it->second) {
+            const std::string& neighbor = neighbor_pair.first;
+            double weight = neighbor_pair.second;
+            double new_distance = current.distance + weight;
+
+            if (dist.find(neighbor) == dist.end() || new_distance < dist[neighbor]) {
+                dist[neighbor] = new_distance;
+                parent[neighbor] = current.node;
+                pq.push({new_distance, neighbor});
+            }
+        }
+    }
+
+    if (dist.find(end_node) == dist.end()) {
+        total_cost = INF;
+        return {};
+    }
+
+    total_cost = dist[end_node];
+    std::vector<std::string> path;
+    for (std::string node = end_node; !node.empty(); node = parent[node]) {
+        path.push_back(node);
+    }
+    std::reverse(path.begin(), path.end());
+    return path;
+}
 
 int main() {
 
@@ -19,7 +135,7 @@ int main() {
     std::vector<std::vector<std::string>> node_addresses;
     // read node_addresses.csv
     // open csv file
-    std::ifstream file("../data/road_addresses.csv");
+    std::ifstream file("data/road_addresses.csv");
     // check if file opened
     if (!file.is_open()) {
         std::cout << "Error while opening road_addresses.csv!" << std::endl;
@@ -72,7 +188,7 @@ int main() {
     // vector for data
     std::vector<std::vector<std::string>> road_edges;
     // open csv file
-    std::ifstream edges_file("../data/road_edges.csv");
+    std::ifstream edges_file("data/road_edges.csv");
     // check if file opened
     if (!edges_file.is_open()) {
         std::cout << "Error while opening road_edges.csv!" << std::endl;
@@ -112,6 +228,20 @@ int main() {
     // close edges file
     edges_file.close();
 
+    // build adjacency list using a map<from, vector<pair<to,weight>>> graph
+    std::map<std::string, std::vector<std::pair<std::string, double>>> graph;
+
+    for (const auto& row : road_edges) {
+        if (row.size() < 3) {
+            continue;
+        }
+
+        const std::string& from_node = row[0];
+        const std::string& to_node = row[1];
+        double length_m = std::stod(row[2]);
+
+        graph[from_node].push_back({to_node, length_m});
+    }
 
     // initialize starting address as UF football stadium
     std::string start_home_num = "157";
@@ -178,13 +308,51 @@ int main() {
         std::cout << "Error finding ending address node!" << std::endl;
     }
 
-    // build adjacency list using a map<from, vector<pair<to,weight>>> graph; Module 10 UF notes
+    // use BFS to find any path from start_node to end_node
+    if (start_node_found && end_node_found) {
+        std::vector<std::string> path = bfs(graph, start_node, end_node);
+        if (!path.empty()) {
+            std::cout << "BFS path from " << start_node << " to " << end_node
+                      << " found with " << path.size() << " nodes:\n";
+            for (size_t i = 0; i < path.size(); ++i) {
+                std::cout << path[i];
+                if (i + 1 < path.size()) {
+                    std::cout << " -> ";
+                }
+            }
+            std::cout << std::endl;
+        } else {
+            std::cout << "No BFS path was found from " << start_node
+                      << " to " << end_node << "." << std::endl;
+        }
 
-    // road_edges vector
-    // from_node = start_node
-    // algorithms to use to_node to solve paths.
-    // need to sum length_m as the path is solved
+        double shortest_distance = 0.0;
+        std::vector<std::string> shortest_path =
+            dijkstra(graph, start_node, end_node, shortest_distance);
 
+        if (!shortest_path.empty()) {
+            std::cout << "Dijkstra shortest path from " << start_node
+                      << " to " << end_node << " found with "
+                      << shortest_path.size() << " nodes." << std::endl;
+
+            std::cout << "Total distance: "
+                      << shortest_distance << " meters" << std::endl;
+
+            for (size_t i = 0; i < shortest_path.size(); ++i) {
+                std::cout << shortest_path[i];
+                if (i + 1 < shortest_path.size()) {
+                    std::cout << " -> ";
+                }
+            }
+
+            std::cout << std::endl;
+        } else {
+            std::cout << "No Dijkstra path was found from "
+                      << start_node << " to " << end_node << "." << std::endl;
+        }
+    } else {
+        std::cout << "Skipping BFS and Dijkstra because the start or end node could not be located." << std::endl;
+    }
 
     return 0;
 
