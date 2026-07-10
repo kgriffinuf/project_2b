@@ -1,0 +1,54 @@
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+	<title>OpenStreetMap Algorithm Data Results</title>
+	<!-- leaflet open source documentation https://leafletjs.com/examples/quick-start/ -->
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+	<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+	<style> #map { width: 100%; height: 85vh; } </style>
+</head>
+
+<body>
+    <!-- Boiler Plate Template Code:
+	https://www.geeksforgeeks.org/html/html-boilerplate/#google_vignette -->
+	
+	<h2>Welcome The Fast Street Gator Project!</h2>
+    <div id="map"></div>
+	
+	<script> const map = L.map("map").setView([29.60, -82.33], 14);
+	
+	// OpenStreetMap OSM Tile Layer https://operations.osmfoundation.org/policies/tiles/
+	L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+		maxZoom: 18,
+		//OpenStreetMap required attribution
+		attribution: "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a>"
+		}).addTo(map);
+		
+		//fetch the Data
+		fetch("algorithm_results.csv")
+			.then(r => r.text())
+			.then(text => {
+				const paths = {BFS: [], Dijkstra: [] };
+				
+				text.trim().split("\n").slice(1).forEach(line => {
+					const [algo, lat, lon] = line.split(",");
+					if (paths[algo]) paths[algo].push([+lat, +lon]);
+				});
+				// plot the polyline for each of the algorithms
+				if (paths.BFS.length) L.polyline(paths.BFS, { color: "red" }).addTo(map);
+				if (paths.Dijkstra.length) L.polyline(paths.Dijkstra, { color: "blue" }).addTo(map);
+				
+				const all = paths.BFS.concat(paths.Dijkstra);
+				if (all.length) map.fitBounds(all);
+				
+			});
+		</script>
+	<p>
+		More information here.
+    </p>
+</body>
+
+</html>
