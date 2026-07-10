@@ -11,17 +11,15 @@ This project implements Breadth-First Search (BFS) and Dijkstra's Algorithm to f
 * Visual Studio Code (recommended)
 
 ## Project Structure
-    project_2b/
-│── data/
-│   ├── road_addresses.csv
-│   ├── road_edges.csv
-│   ├── road_nodes.csv
-│   └── algorithm_results.csv
-│
-│── src/
-│   └── main.cpp
-│
-└── README.md
+-    project_2b/
+--     data/
+-       road_addresses.csv
+-       road_edges.csv
+-       road_nodes.csv
+-       algorithm_results.csv
+-    src/
+       main.cpp
+-    README.md
 
 ## How to Compile
 In the project directory. 
