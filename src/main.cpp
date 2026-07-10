@@ -14,6 +14,7 @@
 #include <queue>
 #include <unordered_set>
 #include <algorithm>
+#include <chrono>
 #include <limits>
 
 std::vector<std::string> bfs(
@@ -58,6 +59,38 @@ std::vector<std::string> bfs(
 
     return {};
 }
+// helper function to find distance of BFS. BFS solves by hop count
+double bfs_distance(
+    const std::map<std::string, std::vector<std::pair<std::string, double>>>& graph,
+    const std::vector<std::string>& path)
+{
+    // initialize total_distance as zero
+    double total_distance = 0.0;
+    // loop through the path to sum total_distance
+    for (size_t i = 0; i + 1 < path.size(); ++i) {
+        // start and dest paths
+        const std::string& start = path[i];
+        const std::string& dest = path[i+1];
+        // iterate through graph from to the end
+        auto iter = graph.find(start);
+        if (iter == graph.end()) {
+            continue;
+        }
+        // loop through to add total_distance up
+        for (const auto& edge : iter->second) {
+            // if it's equal to dest then add
+            if (edge.first == dest) {
+                // increment total_distance
+                total_distance += edge.second;
+                // exit
+                break;
+            }
+        }
+    }
+    // return the total_distance calculated
+    return total_distance;
+}
+
 
 std::vector<std::string> dijkstra(
     const std::map<std::string, std::vector<std::pair<std::string, double>>>& graph,
@@ -135,7 +168,7 @@ int main() {
     std::vector<std::vector<std::string>> node_addresses;
     // read node_addresses.csv
     // open csv file
-    std::ifstream file("data/road_addresses.csv");
+    std::ifstream file("../data/road_addresses.csv");
     // check if file opened
     if (!file.is_open()) {
         std::cout << "Error while opening road_addresses.csv!" << std::endl;
@@ -188,7 +221,7 @@ int main() {
     // vector for data
     std::vector<std::vector<std::string>> road_edges;
     // open csv file
-    std::ifstream edges_file("data/road_edges.csv");
+    std::ifstream edges_file("../data/road_edges.csv");
     // check if file opened
     if (!edges_file.is_open()) {
         std::cout << "Error while opening road_edges.csv!" << std::endl;
@@ -228,6 +261,51 @@ int main() {
     // close edges file
     edges_file.close();
 
+    // read road_nodes.csv for lat/long csv export
+    // map of the node lat long to export/plot
+    std::map<std::string, std::pair<double,double>> node_latlong;
+    // open csv file
+    std::ifstream road_nodes("../data/road_nodes.csv");
+    // check if file opened
+    if (!road_nodes.is_open()) {
+        std::cout << "Error while opening road_nodes.csv!" << std::endl;
+        return 1;
+    }
+
+    // flag to skip first line of csv
+    first_line = true;
+
+    // read in each line
+    while (std::getline(road_nodes, line)) {
+        // skip header line
+        if (first_line) {
+            // set it to false so other lines are not skipped
+            first_line = false;
+            continue;
+        }
+
+        // read in the line
+        std::stringstream ss(line);
+        // strings for node_id and latitude/longitude
+        std::string node_id;
+        std::string lat;
+        std::string lon;
+
+        // each value delimited by commas in csv
+        std::getline(ss, node_id, ',');
+        std::getline(ss, lat, ',');
+        std::getline(ss, lon, ',');
+
+        // load data into map with key node_id and latitude and longitude
+        node_latlong[node_id] = {
+            std::stod(lat),
+            std::stod(lon)
+        };
+
+    }
+    // close edges file
+    road_nodes.close();
+
     // build adjacency list using a map<from, vector<pair<to,weight>>> graph
     std::map<std::string, std::vector<std::pair<std::string, double>>> graph;
 
@@ -260,18 +338,18 @@ int main() {
 
     // USER INPUT
     // input starting home number, street name, and city
-    std::cout << "Enter Starting Home/Business Number: " << std::endl;
+    std::cout << "Enter Starting Home/Business Number: ";
     std::getline(std::cin, start_home_num);
-    std::cout << "Enter Starting Street Name: " << std::endl;
+    std::cout << "Enter Starting Street Name: ";
     std::getline(std::cin, start_street_name);
-    std::cout << "Enter Starting City: " << std::endl;
+    std::cout << "Enter Starting City: ";
     std::getline(std::cin, start_city);
     // input destination city
-    std::cout << "Enter Destination Home/Business Number: " << std::endl;
+    std::cout << "Enter Destination Home/Business Number: ";
     std::getline(std::cin, dest_home_num);
-    std::cout << "Enter Destination Street Name: " << std::endl;
+    std::cout << "Enter Destination Street Name: ";
     std::getline(std::cin, dest_street_name);
-    std::cout << "Enter Destination City: " << std::endl;
+    std::cout << "Enter Destination City: ";
     std::getline(std::cin, dest_city);
 
     // FIND start_node
@@ -282,7 +360,7 @@ int main() {
             // set start_node to nearest_to_node in index 14, nearest_from_node index 13
             start_node = row[14];
             // exit loop since found, set start_found flag to true
-            std::cout << "Starting Node: " << start_node << std::endl;
+            std::cout << "Starting Location Node Identified: " << start_node << std::endl;
             start_node_found = true;
             break;
         }
@@ -299,7 +377,8 @@ int main() {
             // set start_node to nearest_to_node in index 14, nearest_from_node index 13
             end_node = row[14];
             // exit loop since found, set start_found flag to true
-            std::cout << "Ending Node: " << end_node << std::endl;
+            std::cout << "Destination Location Node Identified: " << end_node << std::endl;
+            std::cout << std::endl;
             end_node_found = true;
             break;
         }
@@ -307,13 +386,31 @@ int main() {
     if (!end_node_found) {
         std::cout << "Error finding ending address node!" << std::endl;
     }
+    // declare paths for BFS and Dijkstra
+    std::vector<std::string> path;
+    std::vector<std::string> shortest_path;
 
     // use BFS to find any path from start_node to end_node
     if (start_node_found && end_node_found) {
-        std::vector<std::string> path = bfs(graph, start_node, end_node);
+        // bfs, get clock time begin
+        auto bfs_begin = std::chrono::steady_clock::now();
+        // call bfs algorithm
+        path = bfs(graph, start_node, end_node);
+        // bfs, get clock time end
+        auto bfs_end = std::chrono::steady_clock::now();
+        // calculate runtime from bfs_end - bfs_begin
+        double bfs_time_ms = std::chrono::duration<double, std::milli>(bfs_end - bfs_begin).count();
         if (!path.empty()) {
-            std::cout << "BFS path from " << start_node << " to " << end_node
-                      << " found with " << path.size() << " nodes:\n";
+            // calculate BFS distance in meters
+            double bfs_distance_m = bfs_distance(graph, path);
+            // output path that BFS solved
+            std::cout << "BFS shortest path from " << start_node << " to " << end_node
+                      << " found with " << path.size() << " nodes.\n";
+            // print time taken to solve
+            std::cout << "BFS algorithm solve time: " << bfs_time_ms << " ms" << std::endl;
+            std::cout << "BFS path total distance: "
+                      << bfs_distance_m << " meters" << std::endl;
+            std::cout << "BFS path nodes: ";
             for (size_t i = 0; i < path.size(); ++i) {
                 std::cout << path[i];
                 if (i + 1 < path.size()) {
@@ -325,19 +422,27 @@ int main() {
             std::cout << "No BFS path was found from " << start_node
                       << " to " << end_node << "." << std::endl;
         }
-
+        // break text between algorithm output
+        std::cout << std::endl;
         double shortest_distance = 0.0;
-        std::vector<std::string> shortest_path =
+        // dijkstra, get clock time begin
+        auto dijkstra_begin = std::chrono::steady_clock::now();
+        // call the dijkstra algorithm
+        shortest_path =
             dijkstra(graph, start_node, end_node, shortest_distance);
-
+        // dijkstra, get clock time end
+        auto dijkstra_end = std::chrono::steady_clock::now();
+        // calculate runtime from dijkstra_end - dijkstra_begin
+        double dijkstra_time_ms = std::chrono::duration<double, std::milli>(dijkstra_end - dijkstra_begin).count();
         if (!shortest_path.empty()) {
             std::cout << "Dijkstra shortest path from " << start_node
                       << " to " << end_node << " found with "
                       << shortest_path.size() << " nodes." << std::endl;
-
-            std::cout << "Total distance: "
+            // print time taken to solve
+            std::cout << "Dijkstra algorithm solve time: " << dijkstra_time_ms << " ms" << std::endl;
+            std::cout << "Dijkstra path total distance: "
                       << shortest_distance << " meters" << std::endl;
-
+            std::cout << "Dijkstra path nodes: ";
             for (size_t i = 0; i < shortest_path.size(); ++i) {
                 std::cout << shortest_path[i];
                 if (i + 1 < shortest_path.size()) {
@@ -350,13 +455,41 @@ int main() {
             std::cout << "No Dijkstra path was found from "
                       << start_node << " to " << end_node << "." << std::endl;
         }
+
+        // export data to csv
+        std::ofstream out_file("../data/algorithm_results.csv");
+        // check if file open
+        if (!out_file.is_open()) {
+            std::cout << "Error opening algorithm_results.csv file to export!" << std::endl;
+        } else {
+            out_file << "algorithm,lat,lon\n";
+
+            // loop through BFS nodes
+            for (const std::string& node_id : path) {
+                // iterate through to find lat long of node_id
+                auto iter = node_latlong.find(node_id);
+                // if iterate not at end of map
+                if (iter != node_latlong.end()) {
+                    out_file << "BFS," << iter->second.first << "," << iter->second.second << "\n";
+                }
+            }
+
+            // loop through Dijkstra nodes
+            for (const std::string& node_id : shortest_path) {
+                // iterate through to find lat long of node_id
+                auto iter = node_latlong.find(node_id);
+                // if iterate not at end of map
+                if (iter != node_latlong.end()) {
+                    out_file << "Dijkstra," << iter->second.first << "," << iter->second.second << "\n";
+                }
+            }
+            // close the export file
+            out_file.close();
+            std::cout << "Algorithm Results Exported to /data/algorithm_results.csv" << std::endl;
+        }
     } else {
-        std::cout << "Skipping BFS and Dijkstra because the start or end node could not be located." << std::endl;
+        std::cout << "Skipping BFS and Dijkstra because the start or destination nodes could not be found." << std::endl;
     }
 
     return 0;
-
 }
-
-
-
